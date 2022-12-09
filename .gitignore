@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+build/
+
+*.so
+.venv/
+*.egg-info/
+
+tags
+tags.lock
