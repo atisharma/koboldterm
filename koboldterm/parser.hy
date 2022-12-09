@@ -1,7 +1,7 @@
 (require hyrule.argmove [-> ->>])
 (require hyrule.control [unless])
 
-(import koboldterm [api])
+(import koboldterm [api version])
 
 
 (setv generate-args {})
@@ -110,6 +110,7 @@
              "/reset!" (parse "/delete")
              "/help" help-str
              "/h" help-str
+             "/version" (version "koboldterm")
              "/server-version" (api.server-version)
              "/server" (api.set-server args)
              "/model" (or (api.model args) "Loaded.")
