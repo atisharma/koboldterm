@@ -1,7 +1,7 @@
 (require hyrule.argmove [-> ->>])
 (require hyrule.control [unless])
 
-(import koboldterm.api)
+(import koboldterm [api])
 
 
 (setv generate-args {})

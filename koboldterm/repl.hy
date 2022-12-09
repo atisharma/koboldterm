@@ -1,6 +1,6 @@
 (import rich.console [Console])
 
-(import koboldterm.parser)
+(import koboldterm [parser])
 
 
 (setv console (Console :highlight None))
