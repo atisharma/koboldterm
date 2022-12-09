@@ -1,0 +1,4 @@
+hy==0.25.0
+hyrule==0.21.0
+requests
+rich
