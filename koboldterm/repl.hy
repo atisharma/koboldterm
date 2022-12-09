@@ -28,8 +28,8 @@
   (while True
     ; Console.input has a bug that can obliterate the prompt
     (let [line (.strip (input "> "))]
-      (if (or (.startswith line "/q") (.startswith line "/exit"))
-        (do (print "Bye!") (break))
-        (console.print (or (parser.parse line) "")
-                       :justify "left")))))
+      (cond (or (.startswith line "/q") (.startswith line "/exit")) (do (print "Bye!") (break))
+            (.startswith line "/clear") (console.clear)
+            :else (console.print (or (parser.parse line) "")
+                                 :justify "left")))))
 

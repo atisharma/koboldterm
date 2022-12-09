@@ -10,12 +10,14 @@
       "
       To add to the story, just enter the text.
       Lines beginning with [bold]/[/bold] will be parsed as commands.
+      The usual readline shortcuts should be available.
 
   [bold]Commands:[/bold]
 
       [bold]/help /h[/bold]                   show this helpful text
       [bold]/quit /q /exit[/bold]             quit
       [bold]/version[/bold]                   show the version of this client
+      [bold]/clear[/bold]                     clear the display
 
       [bold]/undo[/bold]                      delete the last action
       [bold]/retry[/bold]                     synonym for [bold]/undo[/bold] then [bold]/generate[/bold]
@@ -28,8 +30,8 @@
       [bold]/last[/bold]                      synonym for [bold]/recap 1[/bold]
       [bold]/print /p /story[/bold]           synonyms for [bold]/recap[/bold]
 
-      [bold]/save 'fname'[/bold]                save to story under the name 'fname'
-      [bold]/load 'fname'[/bold]                load a story from a previous save
+      [bold]/save 'fname'[/bold]              save to story under the name 'fname'
+      [bold]/load 'fname'[/bold]              load a story from a previous save
 
       [bold]/delete! /reset![/bold]           delete the whole story!
       [bold]/server-version[/bold]            show the server version
