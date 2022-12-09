@@ -1,8 +1,10 @@
-# KoboldTerm - a simple terminal client for the Kobold AI API.
+# KoboldTerm
+
+## A simple terminal client for the Kobold AI API.
 
 This is an old-school terminal client for the incredible [Kobold AI](https://github.com/KoboldAI/KoboldAI-Client)
 
-## Usage
+### Usage
 
 ```
 $ kbterm
@@ -11,7 +13,7 @@ $ kbterm
 In the repl, type `/help` for available commands.
 
 
-## Installation
+### Installation
 
 Requires python 3.10. Dependencies are listed in `requirements.txt`.
 
@@ -20,17 +22,22 @@ Installing kbterm with pip should pull them into your current environment (venv 
 $ pip install koboldterm
 ```
 
-## Bugs
+### Bugs
 
 - Probably there are.
 
+### Todo
 
-## Contributing
+- set world info
+- set author's notes and memory from a file (there is probably already a way to do this in the api)
+
+
+### Contributing
 
 Contributions would be welcome.
 
 
-## Credits
+### Credits
 
 Copyright A S Sharma (2022), released under the GPL v3.0 (see LICENSE and AUTHORS).
 
