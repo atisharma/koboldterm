@@ -13,7 +13,7 @@ In the repl, type `/help` for available commands.
 
 ## Installation
 
-Requires python 3.10, with python packages requests, and hy (0.25.0).
+Requires python 3.10. Dependencies are listed in `requirements.txt`.
 
 Installing kbterm with pip should pull them into your current environment (venv etc...),
 ```
@@ -27,7 +27,7 @@ $ pip install koboldterm
 
 ## Contributing
 
-Would be welcome!
+Contributions would be welcome.
 
 
 ## Credits

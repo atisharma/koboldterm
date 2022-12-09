@@ -8,8 +8,15 @@
 
 (setv help-str
       "
-      To add to the story, just enter the text.
-      Lines beginning with [bold]/[/bold] will be parsed as commands.
+      To add to the story, just enter some text.
+
+      You probably want to set:
+        [bold]/config authors_note[/bold]
+        [bold]/config memory[/bold]
+
+      There is not yet a way to set world info (except via the web interface).
+
+      Lines beginning with [bold]/[/bold] are parsed as commands.
       The usual readline shortcuts should be available.
 
   [bold]Commands:[/bold]
@@ -26,7 +33,7 @@
       [bold]/append /a[/bold]                 synonyms of add
       [bold]/more /generate /g[/bold]         generate more story without adding anything yourself
 
-      [bold]/recap 'n'[/bold]                 display the last 'n' turns (or the whole story without 'n')
+      [bold]/recap 'n'[/bold]                 display the last 'n' turns (or the whole story)
       [bold]/last[/bold]                      synonym for [bold]/recap 1[/bold]
       [bold]/print /p /story[/bold]           synonyms for [bold]/recap[/bold]
 
@@ -38,7 +45,6 @@
       [bold]/server[/bold]                    show (or set) the server in 'ip:port' format
       [bold]/model 'model-name'[/bold]        show (or set) the current model
       [bold]/config <setting> <value>[/bold]  get or set a setting
-
       ")
 
 
