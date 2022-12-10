@@ -3,7 +3,7 @@
 (import hyrule.iterables [flatten])
 
 (import requests)
-(import requests.exceptions [HTTPError JSONDecodeError])
+(import requests.exceptions [HTTPError JSONDecodeError ConnectionError])
 
 
 (setv server "localhost:5000")
@@ -17,6 +17,23 @@
 (defn base-url []
   f"http://{server}/api/v1")
 
+; TODO: as a macro
+(defn request [url method [json None]]
+  """
+  Dispatcher for request. Return a response object.
+  """
+  (try
+    (match method
+           "get" (requests.get url)
+           "post" (requests.post url :json json)
+           "put" (requests.put url :json json)
+           "delete" (requests.delete url))
+    (except [ConnectionError]
+      (setv r (requests.Response)
+            r.status-code "ConnectionError"
+            r.reason f"Failed to establish a new connection to {(base-url)}.")
+      r)))
+            
 (defn format-response [response]
   (let [error-str f"[red]{response.status-code}: {response.reason}"]
     (try
@@ -32,34 +49,26 @@
 (defn get-endpoint [endpoint]
   (-> (base-url)
       (+ endpoint)
-      (requests.get)
+      (request "get")
       (format-response)))
 
 (defn post-endpoint [endpoint payload]
   (-> (base-url)
       (+ endpoint)
-      (requests.post :json payload)
+      (request "post" :json payload)
       (format-response)))
 
 (defn put-endpoint [endpoint payload]
   (-> (base-url)
       (+ endpoint)
-      (requests.put :json payload)
+      (request "put" :json payload)
       (format-response)))
 
 (defn delete-endpoint [endpoint]
-  (try
-    (setv data {})
-    (setv response (requests.delete (+ (base-url) endpoint)))
-    (setv data (response.json))
-    (response.raise-for-status)
-    None
-    (except [e HTTPError]
-            (str {#**data "error" e}))
-    (except [e JSONDecodeError]
-            (str response))
-    (except [e Exception]
-            (str {#**data "error" e}))))
+  (-> (base-url)
+      (+ endpoint)
+      (request "delete")
+      (format-response)))
 
 (defn server-version []
   (get-endpoint "/info/version"))
@@ -69,7 +78,7 @@
   (let [response (post-endpoint "/generate" {"prompt" prompt #**kwargs})]
     (try
       (get response 0 "text")
-      (except [KeyError]
+      (except [[KeyError TypeError]]
         (str response)))))
 
 (defn model [[model None]]

@@ -27,11 +27,14 @@
 (defn run []
   (banner)
   ; the repl
-  (while True
-    ; Console.input has a bug that can obliterate the prompt
-    (let [line (.strip (input "> "))]
-      (cond (or (.startswith line "/q") (.startswith line "/exit")) (do (print "Bye!") (break))
-            (.startswith line "/clear") (console.clear)
-            :else (console.print (or (parser.parse line) "")
-                                 :justify "left")))))
+  (try
+    (while True
+      ; Console.input has a bug that can obliterate the prompt
+      (let [line (.strip (input "> "))]
+        (cond (or (.startswith line "/q") (.startswith line "/exit")) (break)
+              (.startswith line "/clear") (console.clear)
+              :else (console.print (or (parser.parse line) "")
+                                   :justify "left"))))
+    (except [EOFError]))
+  (print "Bye!"))
 

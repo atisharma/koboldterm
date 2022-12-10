@@ -32,10 +32,12 @@
       [bold]/add 'text'[/bold]                add text to the story without generating text
       [bold]/append /a[/bold]                 synonyms of add
       [bold]/more /generate /g[/bold]         generate more story without adding anything yourself
+      [bold]/prompt[/bold]                    add text to the story from a file saved under the directory 'prompts/'
+      [bold]/note[/bold]                      set author's note from a file saved under the directory '/notes'
 
       [bold]/recap 'n'[/bold]                 display the last 'n' turns (or the whole story)
-      [bold]/last[/bold]                      synonym for [bold]/recap 1[/bold]
-      [bold]/print /p /story[/bold]           synonyms for [bold]/recap[/bold]
+      [bold]/last /l[/bold]                   synonym for [bold]/recap 1[/bold]
+      [bold]/print /story /p[/bold]           synonyms for [bold]/recap[/bold]
 
       [bold]/save 'fname'[/bold]              save to story under the name 'fname'
       [bold]/load 'fname'[/bold]              load a story from a previous save
@@ -52,9 +54,12 @@
   """
   Format the story list-of-dicts.
   """
-  (.join separator
-         (list (map (fn [l] (.strip (:text l "<text field is missing>")))
-                    story))))
+  (try
+    (.join separator
+           (list (map (fn [l] (.strip (:text l "<text field is missing>")))
+                      story)))
+    (except [ValueError TypeError]
+            story)))
 
 (defn trim [story-str]
   """
@@ -69,6 +74,15 @@
     (.replace "\n\n\n" "\n\n")
     (.strip))) 
 
+(defn close-quotes [line]
+  """
+  If there is an odd number of quotes, close the quote.
+  """
+  (let [squashed-line (.replace line "\n" " ")]
+    (if (% (.count squashed-line "\"") 2)
+      (+ line "\"")
+      line)))
+  
 (defn recap [[n None]]
   """
   Return the last `n` turns of the story as a formatted string.
@@ -79,7 +93,7 @@
           chunk-ns  (get ns (slice (- (int n)) None))
           chunks    (lfor j chunk-ns (api.story f"/{j}"))]
       (format-story chunks "\n\n"))
-    (except [ValueError]
+    (except [[ValueError TypeError]]
             (format-story (api.story) "\n\n"))))
 
 (defn generate []
@@ -87,12 +101,33 @@
         new-text (-> story
                      (api.generate #**generate-args)
                      (deblank)
-                     (trim))]
+                     (trim)
+                     (close-quotes))]
     (api.end new-text) 
     (+ new-text "\n")))
 
+(defn note [fname]
+  (try
+    (with [f (open f"notes/{fname}" "r")]
+      (let [an (f.read)]
+        (api.config "authors_note" :value an)
+        f"Author's note '{fname}' loaded."))
+    (except [FileNotFoundError]
+            f"[red]No such file or directory: notes/{fname}[/red]")))
+
+(defn prompt [fname]
+  (try
+    (with [f (open f"prompts/{fname}" "r")]
+      (let [p (deblank (f.read))]
+        (-> p
+            (.replace "\n" " ")
+            (api.end))
+        p))
+    (except [FileNotFoundError]
+            f"[red]No such file or directory: prompts/{fname}[/red]")))
+
 (defn take-turn [line]
-  (api.end line)
+  (api.end (close-quotes line))
   (generate))
 
 (defn parse [line]
@@ -100,33 +135,41 @@
   Do the action implied by `line`, and return the result as a string.
   """
   (setv [command _ args] (.partition line " "))
-  (or (match command
-             "/generate" (generate)
-             "/g" (parse "/generate")
-             "/more" (parse "/generate")
-             "/undo" (api.end :delete True)
-             "/retry" (do (parse "/undo") (parse "/generate"))
-             "/delete!" (or (api.story :delete True) "Story deleted.")
-             "/reset!" (parse "/delete")
-             "/help" help-str
-             "/h" help-str
-             "/version" (version "koboldterm")
-             "/server-version" (api.server-version)
-             "/server" (api.set-server args)
-             "/model" (or (api.model args) "Loaded.")
-             "/save" (or (api.save args) "Saved.")
-             "/load" (or (api.load args) "Loaded.")
-             "/add" (api.end (+ args "\n"))
-             "/append" (api.end (+ args "\n"))
-             "/a" (api.end (+ args "\n"))
-             "/recap" (recap args)
-             "/story" (recap args)
-             "/print" (recap args)
-             "/p" (recap args)
-             "/last" (recap 1)
-             "/config" (let [[setting _ value] (.partition args " ")]
-                         (str (api.config setting :value value))))
-      (when line
-        (unless (.startswith line "/")
-               (take-turn line)))))
+  (or (not line)
+      (match command
+            "/generate" (generate)
+            "/g" (parse "/generate")
+            "/more" (parse "/generate")
+            "/undo" (api.end :delete True)
+            "/retry" (do (parse "/undo") (parse "/generate"))
+            "/delete!" (or (api.story :delete True) "Story deleted.")
+            "/reset!" (parse "/delete!")
+            "/help" help-str
+            "/h" help-str
+            "/version" (version "koboldterm")
+            "/server-version" (api.server-version)
+            "/server" (api.set-server args)
+            "/model" (or (api.model args) "Loaded.")
+            "/save" (or (api.save args) "Saved.")
+            "/load" (or (api.load args) "Loaded.")
+            "/add" (api.end (+ args "\n"))
+            "/append" (api.end (+ args "\n"))
+            "/a" (api.end (+ args "\n"))
+            "/recap" (recap args)
+            "/story" (recap args)
+            "/print" (recap args)
+            "/p" (recap args)
+            "/last" (recap 1)
+            "/l" (recap 1)
+            "/prompt" (prompt args)
+            "/note" (note args)
+            "/config" (let [[setting _ value] (.partition args " ")]
+                        (if value
+                          (-> (api.config setting :value value)
+                              (or  f"{setting} set."))
+                          (-> (api.config setting)
+                              str
+                              (.replace  "[" "\\[")))))
+      (unless (.startswith line "/")
+        (take-turn line))))
 
