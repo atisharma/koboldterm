@@ -1,4 +1,7 @@
-(require hyrule.argmove [-> ->>])
+(import os)
+(import itertools [filterfalse])
+
+(require hyrule.argmove [-> ->> as->])
 (require hyrule.control [unless])
 
 (import koboldterm [api version])
@@ -10,45 +13,60 @@
       "
       To add to the story, just enter some text.
 
-      You probably want to set:
-        [bold]/config authors_note[/bold]
-        [bold]/config memory[/bold]
-
-      There is not yet a way to set world info (except via the web interface).
-
       Lines beginning with [bold]/[/bold] are parsed as commands.
+      In adventure mode, lines beginning with [bold]>[/bold] are parsed as actions.
       The usual readline shortcuts should be available.
 
   [bold]Commands:[/bold]
 
-      [bold]/help /h[/bold]                   show this helpful text
-      [bold]/quit /q /exit[/bold]             quit
-      [bold]/version[/bold]                   show the version of this client
-      [bold]/clear[/bold]                     clear the display
+      [bold]/help /h[/bold]                   Show this helpful text
+      [bold]/quit /q /exit[/bold]             Quit
+      [bold]/version[/bold]                   Show the version of this client
+      [bold]/clear[/bold]                     Clear the display
 
-      [bold]/undo[/bold]                      delete the last action
-      [bold]/retry[/bold]                     synonym for [bold]/undo[/bold] then [bold]/generate[/bold]
+      [bold]/undo[/bold]                      Delete the last action
+      [bold]/retry[/bold]                     Synonym for [bold]/undo[/bold] then [bold]/generate[/bold]
 
-      [bold]/add 'text'[/bold]                add text to the story without generating text
-      [bold]/append /a[/bold]                 synonyms of add
-      [bold]/more /generate /g[/bold]         generate more story without adding anything yourself
-      [bold]/prompt[/bold]                    add text to the story from a file saved under the directory 'prompts/'
-      [bold]/note[/bold]                      set author's note from a file saved under the directory '/notes'
+      [bold]/add 'text'[/bold]                Add text to the story without generating text
+      [bold]/append /a[/bold]                 Synonyms of add
+      [bold]/more /generate /g[/bold]         Generate more story without adding anything yourself
 
-      [bold]/recap 'n'[/bold]                 display the last 'n' turns (or the whole story)
-      [bold]/last /l[/bold]                   synonym for [bold]/recap 1[/bold]
-      [bold]/print /story /p[/bold]           synonyms for [bold]/recap[/bold]
+      [bold]/start dirname[bold]              Set the prompt, notes, memory and world info from a directory 'dirname'.
+      [bold]/prompt dirname[/bold]            Adds story text from a file called 'prompt' under the directory
+      [bold]/note dirname[/bold]              Set author's note from a file called 'note' saved under the directory
+      [bold]/memory dirname[/bold]            Set the story memory from a file called 'memory' saved under the directory
+      [bold]/world dirname[/bold]             Set the world info from all files saved under 'dirname/world'
+      [bold]/world delete[/bold]              Delete all world info
 
-      [bold]/save 'fname'[/bold]              save to story under the name 'fname'
-      [bold]/load 'fname'[/bold]              load a story from a previous save
+      [bold]/recap 'n'[/bold]                 Display the last 'n' turns (or the whole story)
+      [bold]/last /l[/bold]                   Synonym for [bold]/recap 1[/bold]
+      [bold]/print /story /p[/bold]           Synonyms for [bold]/recap[/bold]
 
-      [bold]/delete! /reset![/bold]           delete the whole story!
-      [bold]/server-version[/bold]            show the server version
-      [bold]/server[/bold]                    show (or set) the server in 'ip:port' format
-      [bold]/model 'model-name'[/bold]        show (or set) the current model
-      [bold]/config <setting> <value>[/bold]  get or set a setting
+      [bold]/save 'fname'[/bold]              Save to story under the name 'fname' (on the server)
+      [bold]/load 'fname'[/bold]              Load a story from a previous save (on the server)
+
+      [bold]/delete! /reset![/bold]           Delete the whole story!
+      [bold]/server-version[/bold]            Show the server version
+      [bold]/server[/bold]                    Show (or set) the server in 'ip:port' format
+      [bold]/model 'model-name'[/bold]        Show (or set) the current model
+      [bold]/config <setting> <value>[/bold]  Get or set a setting
+
+      [bold]TL;DR[/bold] type [bold]/start dirname[/bold] where dirname is a directory.
       ")
 
+
+(defn sbf [linelist]
+  """
+  `linelist` is a list of strings.
+  Put each line in square bracket format.
+  Remove blank lines. Return as one string.
+  """
+  (as-> linelist lines
+      (filterfalse str.isspace lines)
+      (filter None lines)
+      (.join " ] [ " lines) 
+      (.replace lines "\n" "")
+      (+ "[ " lines " ]")))
 
 (defn format-story [story [separator " "]]
   """
@@ -65,23 +83,29 @@
   """
   Remove last incomplete sentence.
   """
-  (+ (.join "."
-            (get (.split story-str ".") (slice 0 -1)))
-     "."))
-  
+  (let [sentences (.split story-str ".")]
+    (+ (.join "." (get sentences (slice 0 -1)))
+       "."
+       (if (in "\"" (get sentences -1))
+         "\""
+         ""))))
+
 (defn deblank [story-str]
   (-> story-str
     (.replace "\n\n\n" "\n\n")
     (.strip))) 
 
-(defn close-quotes [line]
+(defn close-quotes [story-str]
   """
-  If there is an odd number of quotes, close the quote.
+  If there is an odd number of quotes in a line, close the quote.
   """
-  (let [squashed-line (.replace line "\n" " ")]
-    (if (% (.count squashed-line "\"") 2)
-      (+ line "\"")
-      line)))
+  (.join "\n"
+    (lfor line (.splitlines story-str)
+      (if (% (.count line "\"") 2)
+        (if (= (get line -1) "\"")
+          (+ "\"" line)
+          (+ line "\""))
+        line))))
   
 (defn recap [[n None]]
   """
@@ -106,25 +130,81 @@
     (api.end new-text) 
     (+ new-text "\n")))
 
-(defn note [fname]
-  (try
-    (with [f (open f"notes/{fname}" "r")]
-      (let [an (f.read)]
-        (api.config "authors_note" :value an)
-        f"Author's note '{fname}' loaded."))
-    (except [FileNotFoundError]
-            f"[red]No such file or directory: notes/{fname}[/red]")))
+(defn world [dirname]
+  """
+  Load any world info files saved under `dirname/world/`.
+  The format is per line. The first line is a comment. The second line contains keywords, separated by spaces.
+  The rest is descriptive text.
+    `descriptive title
+     keyword1, keyword2, keyword3
+     Some text here, each line should stand separately.
+     Some more text.
+    `
+  """
+  ; TODO: move some of this to api module
+  (cond
+    (= dirname "delete") (+ "[italic]World info with uid"
+                            (.join ", "
+                                   (lfor uid (:entries (api.get-endpoint "/world_info/uids") [])
+                                        (str (or (api.delete-endpoint f"/world_info/{uid}") f"{uid}"))))
+                            " deleted.[/italic]")
+    dirname (if (os.path.isdir f"{dirname}/world")
+              (+ "[italic]World info "
+                 (.join ", "
+                        (lfor fname (os.listdir f"{dirname}/world")
+                              (try
+                                (with [f (open f"{dirname}/world/{fname}" "r")]
+                                  (let [wi (f.readlines)
+                                        uid (api.post-endpoint "/world_info/folders/none" {})
+                                        comment (.strip (.pop wi 0))
+                                        key (.strip (.pop wi 0))]
+                                    (api.put-endpoint f"/world_info/{uid}/comment" {"value" comment})
+                                    (api.put-endpoint f"/world_info/{uid}/key" {"value" key})
+                                    (api.put-endpoint f"/world_info/{uid}/content" {"value" (sbf wi)}))
+                                  f"{fname}")
+                                (except [FileNotFoundError]
+                                        f"[red]No world info file: {dirname}/world/{fname}, not set[/red]"))))
+                 " loaded.[/italic]")
+              f"[red]No world info directory: {dirname}/world[/red]")
+    :else (api.get-endpoint "/world_info")))
 
-(defn prompt [fname]
+(defn note [dirname]
   (try
-    (with [f (open f"prompts/{fname}" "r")]
-      (let [p (deblank (f.read))]
-        (-> p
-            (.replace "\n" " ")
-            (api.end))
+    (with [f (open f"{dirname}/note" "r")]
+      (api.config "authors_note" :value (sbf (f.readlines)))
+      f"[italic]Author's note '{dirname}' loaded.[/italic]")
+    (except [FileNotFoundError]
+            f"[red]No such file or directory: {dirname}/note, authors_note not set[/red]")))
+
+(defn memory [dirname]
+  (try
+    (with [f (open f"{dirname}/memory" "r")]
+      (api.config "memory" :value (sbf (f.readlines)))
+      f"[italic]Story memory '{dirname}' loaded.[/italic]")
+    (except [FileNotFoundError]
+            f"[red]No such file or directory: {dirname}/memory, memory not set[/red]")))
+
+(defn prompt [dirname]
+  (try
+    (with [f (open f"{dirname}/prompt" "r")]
+      (let [p (f.read)]
+        (api.end p)
         p))
     (except [FileNotFoundError]
-            f"[red]No such file or directory: prompts/{fname}[/red]")))
+            f"[red]No such file or directory: {dirname}/prompt, prompt not set[/red]")))
+
+(defn start [dirname]
+  """
+  Load prompt, author's note and memory.
+  Also load any world info files available in the 'world' subdirectory.
+  """
+  (if dirname
+    (.join "\n"
+      [(world dirname)
+       (memory dirname)
+       (note dirname)
+       (prompt dirname)])
+    "[red]Please specify a directory name.[/red]"))
 
 (defn take-turn [line]
   (api.end (close-quotes line))
@@ -162,7 +242,10 @@
             "/last" (recap 1)
             "/l" (recap 1)
             "/prompt" (prompt args)
+            "/memory" (memory args)
             "/note" (note args)
+            "/world" (world args)
+            "/start" (start args)
             "/config" (let [[setting _ value] (.partition args " ")]
                         (if value
                           (-> (api.config setting :value value)

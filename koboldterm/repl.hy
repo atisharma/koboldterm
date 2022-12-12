@@ -30,7 +30,7 @@
   (try
     (while True
       ; Console.input has a bug that can obliterate the prompt
-      (let [line (.strip (input "> "))]
+      (let [line (.strip (input "... "))]
         (cond (or (.startswith line "/q") (.startswith line "/exit")) (break)
               (.startswith line "/clear") (console.clear)
               :else (console.print (or (parser.parse line) "")

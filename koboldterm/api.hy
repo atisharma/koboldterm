@@ -1,12 +1,11 @@
 (require hyrule.argmove [-> ->>])
-
 (import hyrule.iterables [flatten])
 
 (import requests)
 (import requests.exceptions [HTTPError JSONDecodeError ConnectionError])
 
 
-(setv server "localhost:5000")
+(setv server "http://localhost:5000")
 
 
 (defn set-server [[new-server None]]
@@ -15,7 +14,7 @@
   server)
 
 (defn base-url []
-  f"http://{server}/api/v1")
+  f"{server}/api/v1")
 
 ; TODO: as a macro
 (defn request [url method [json None]]
@@ -41,6 +40,7 @@
         (cond (in "result" data)   (:result data)
               (in "results" data)  (:results data)
               (in "value" data)    (:value data)
+              (in "uid" data)    (:uid data)
               (in "detail" data)   (+ "[red]" (-> data :detail (:msg error-str)))
               :else               data))
       (except [JSONDecodeError]
@@ -91,11 +91,6 @@
     (put-endpoint (+ "/config/" setting) {"value" value})
     (get-endpoint (+ "/config/" setting))))
     
-(defn world-info [setting [uid None] [value None]]
-  (if uid
-    (put-endpoint (+ "/world_info/" uid "/" setting) {"value" value})
-    (get-endpoint (+ "/world_info/" uid "/" setting))))
-
 (defn story [[endpoint None] * [delete None]]
   (cond delete (delete-endpoint "/story")
         endpoint (get-endpoint (+ "/story" endpoint))
