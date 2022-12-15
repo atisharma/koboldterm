@@ -49,6 +49,7 @@
       [bold]/server-version[/bold]            Show the server version
       [bold]/server[/bold]                    Show (or set) the server in 'ip:port' format
       [bold]/model 'model-name'[/bold]        Show (or set) the current model
+      [bold red]/preset <fname>            Load a (json) settings file, 'fname'.settings from the 'presets' directory (not implemented)[/bold red]
       [bold]/config <setting> <value>[/bold]  Get or set a setting
 
       [bold]TL;DR[/bold] type [bold]/start dirname[/bold] where dirname is a directory.
@@ -92,13 +93,15 @@
 
 (defn deblank [story-str]
   (-> story-str
-    (.replace "\n\n\n" "\n\n")
-    (.strip))) 
+      (.replace "\n\n\n" "\n\n")
+      (.strip))) 
 
 (defn close-quotes [story-str]
   """
   If there is an odd number of quotes in a line, close the quote.
   """
+  ; TODO: if there is more than one quote and the whole str is wrapped
+  ; in quotes, remove the outside quotes (heuristically, it's a mistake.)
   (.join "\n"
     (lfor line (.splitlines story-str)
       (if (% (.count line "\"") 2)
@@ -128,7 +131,7 @@
                      (trim)
                      (close-quotes))]
     (api.end new-text) 
-    (+ new-text "\n")))
+    new-text))
 
 (defn world [dirname]
   """
@@ -142,6 +145,7 @@
     `
   """
   ; TODO: move some of this to api module
+  ; TODO: maybe use folders
   (cond
     (= dirname "delete") (+ "[italic]World info with uid"
                             (.join ", "
@@ -150,7 +154,7 @@
                             " deleted.[/italic]")
     dirname (if (os.path.isdir f"{dirname}/world")
               (+ "[italic]World info "
-                 (.join ", "
+                 (.join ""
                         (lfor fname (os.listdir f"{dirname}/world")
                               (try
                                 (with [f (open f"{dirname}/world/{fname}" "r")]
@@ -161,9 +165,9 @@
                                     (api.put-endpoint f"/world_info/{uid}/comment" {"value" comment})
                                     (api.put-endpoint f"/world_info/{uid}/key" {"value" key})
                                     (api.put-endpoint f"/world_info/{uid}/content" {"value" (sbf wi)}))
-                                  f"{fname}")
+                                  f".")
                                 (except [FileNotFoundError]
-                                        f"[red]No world info file: {dirname}/world/{fname}, not set[/red]"))))
+                                        f"\n[red]No world info file: {dirname}/world/{fname}, not set[/red]\n"))))
                  " loaded.[/italic]")
               f"[red]No world info directory: {dirname}/world[/red]")
     :else (api.get-endpoint "/world_info")))
@@ -174,7 +178,7 @@
       (api.config "authors_note" :value (sbf (f.readlines)))
       f"[italic]Author's note '{dirname}' loaded.[/italic]")
     (except [FileNotFoundError]
-            f"[red]No such file or directory: {dirname}/note, authors_note not set[/red]")))
+            f"[red]No such file: {dirname}/note, authors_note not set[/red]")))
 
 (defn memory [dirname]
   (try
@@ -182,7 +186,7 @@
       (api.config "memory" :value (sbf (f.readlines)))
       f"[italic]Story memory '{dirname}' loaded.[/italic]")
     (except [FileNotFoundError]
-            f"[red]No such file or directory: {dirname}/memory, memory not set[/red]")))
+            f"[red]No such file: {dirname}/memory, memory not set[/red]")))
 
 (defn prompt [dirname]
   (try
@@ -191,7 +195,7 @@
         (api.end p)
         p))
     (except [FileNotFoundError]
-            f"[red]No such file or directory: {dirname}/prompt, prompt not set[/red]")))
+            f"[red]No such file: {dirname}/prompt, prompt not set[/red]")))
 
 (defn start [dirname]
   """
@@ -203,11 +207,41 @@
       [(world dirname)
        (memory dirname)
        (note dirname)
+       "\n"
        (prompt dirname)])
     "[red]Please specify a directory name.[/red]"))
 
+(defn preset [fname]
+  """
+  Load a json file of settings.
+  """
+  (import json)
+  (try
+      (with [f (open f"presets/{fname}.settings" "r")]
+        (+ "[italic]Loading presets from 'presets/{fname}.settings':\n"
+          (.join "\n"
+            (lfor [k v] (.items (json.load f))
+                  (cond (isinstance v dict) (.join "\n"
+                                                   (lfor [k2 v2] (.items v)
+                                                         (+  f"\t[/italic]{k2}: {v2}[italic]  ...  "
+                                                            (if (api.config f"{k2}" :value (str v))
+                                                              "[red](failed)[/red]"
+                                                              "(set)"))))
+                        (isinstance k str) (+ f"\t[/italic]{k}: {v}[italic]  ...  "
+                                              (if (api.config (str k) :value v)
+                                                "[red](failed)[/red]"
+                                                "(set)"))
+                        :else f"[red]Cannot interpret {k}: {v}[/red]")))
+          "\n[/italic]"))
+      (except [FileNotFoundError]
+              f"[red]No such settings file: presets/{fname}.settings[/red]")))
+  
 (defn take-turn [line]
-  (api.end (close-quotes line))
+  (-> line
+    (.replace ">" "\n\n>")
+    (+ "\n")
+    (close-quotes)
+    (api.end))
   (generate))
 
 (defn parse [line]
@@ -222,16 +256,16 @@
             "/more" (parse "/generate")
             "/undo" (api.end :delete True)
             "/retry" (do (parse "/undo") (parse "/generate"))
-            "/delete!" (or (api.story :delete True) "Story deleted.")
+            "/delete!" (or (api.story :delete True) "[italic]Story reset.[/italic]")
             "/reset!" (parse "/delete!")
             "/help" help-str
             "/h" help-str
             "/version" (version "koboldterm")
             "/server-version" (api.server-version)
             "/server" (api.set-server args)
-            "/model" (or (api.model args) "Loaded.")
-            "/save" (or (api.save args) "Saved.")
-            "/load" (or (api.load args) "Loaded.")
+            "/model" (or (api.model args) "[italic]Loaded.[/italic]")
+            "/save" (or (api.save args) "[italic]Saved.[/italic]")
+            "/load" (or (api.load args) "[italic]Loaded.[/italic]")
             "/add" (api.end (+ args "\n"))
             "/append" (api.end (+ args "\n"))
             "/a" (api.end (+ args "\n"))
@@ -246,13 +280,14 @@
             "/note" (note args)
             "/world" (world args)
             "/start" (start args)
+            "/preset" (preset args)
             "/config" (let [[setting _ value] (.partition args " ")]
                         (if value
                           (-> (api.config setting :value value)
-                              (or  f"{setting} set."))
+                              (or  f"[italic]{setting} set.[/italic]"))
                           (-> (api.config setting)
                               str
                               (.replace  "[" "\\[")))))
       (unless (.startswith line "/")
-        (take-turn line))))
+        (take-turn (+ "\n" line "\n\n")))))
 

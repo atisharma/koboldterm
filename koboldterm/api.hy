@@ -34,14 +34,14 @@
       r)))
             
 (defn format-response [response]
-  (let [error-str f"[red]{response.status-code}: {response.reason}"]
+  (let [error-str f"[red]{response.status-code}: {response.reason}[/red]"]
     (try
       (let [data (response.json)]
         (cond (in "result" data)   (:result data)
               (in "results" data)  (:results data)
               (in "value" data)    (:value data)
-              (in "uid" data)    (:uid data)
-              (in "detail" data)   (+ "[red]" (-> data :detail (:msg error-str)))
+              (in "uid" data)      (:uid data)
+              (in "detail" data)   (-> data :detail (:msg error-str))
               :else               data))
       (except [JSONDecodeError]
               error-str))))

@@ -1,9 +1,13 @@
+(require hyrule.argmove [-> ->> as->])
+
 (import rich.console [Console])
+(import rich.padding [Padding])
 
 (import koboldterm [parser])
 
 
-(setv console (Console :highlight None))
+(setv console (Console :highlight None)
+      margin 1)
 
 
 (defn banner []
@@ -24,6 +28,23 @@
                        :style f"bold {c}"
                        :overflow "crop")))
 
+(defn set-width [line]
+  (try
+    (let [arg (get (.partition line " ") 2)]
+      (global console)
+      (setv console (Console :highlight None :width (int arg)))
+      "")
+    (except [[IndexError ValueError]]
+      "[red]Bad console width value.[/red]")))
+    
+(defn set-margin [line]
+    (let [arg (get (.partition line " ") 2)]
+      (global margin)
+      (if (.isnumeric arg)
+        (do (setv margin (int arg)) "")
+        "[red]That needs to be a number.[/red]")))
+    
+
 (defn run []
   (banner)
   ; the repl
@@ -33,8 +54,12 @@
       (let [line (.strip (input "... "))]
         (cond (or (.startswith line "/q") (.startswith line "/exit")) (break)
               (.startswith line "/clear") (console.clear)
-              :else (console.print (or (parser.parse line) "")
-                                   :justify "left"))))
+              (.startswith line "/width") (console.print (set-width line))
+              (.startswith line "/margin") (console.print (set-margin line))
+              :else (-> (parser.parse line)
+                        (or  "")
+                        (Padding  #(0 margin 1 margin))
+                        (console.print :justify "left")))))
     (except [EOFError]))
   (print "Bye!"))
 

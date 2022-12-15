@@ -28,9 +28,8 @@ $ pip install koboldterm
 
 ### Todo
 
-- set world info
-- set author's notes and memory from a file (there is probably already a way to do this in the api)
-
+- settings file
+- clarify difference between actions and story sent to the api (if any)
 
 ### Contributing
 
