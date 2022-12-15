@@ -1,4 +1,5 @@
 (import os)
+(import re)
 (import itertools [filterfalse])
 
 (require hyrule.argmove [-> ->> as->])
@@ -80,35 +81,37 @@
     (except [ValueError TypeError]
             story)))
 
+(defn deblank [story-str]
+  (-> story-str
+      (.replace "<|endoftext|>" "\n")
+      (.replace "\n\n\n" "\n\n")
+      (.replace "\n\"\"" "")
+      (.strip))) 
+
 (defn trim [story-str]
   """
   Remove last incomplete sentence.
   """
-  (let [sentences (.split story-str ".")]
-    (+ (.join "." (get sentences (slice 0 -1)))
-       "."
-       (if (in "\"" (get sentences -1))
-         "\""
+  (let [sentences (re.split "([\\.\"\\?]+\\s)" story-str)
+        last-sentence (get sentences -1)
+        last-char (-> last-sentence (.strip) (get -1))
+        leading-sentences (.join "" (get sentences (slice 0 -1)))]
+    (+ leading-sentences
+       (if (in last-char "\".?")
+         last-sentence
          ""))))
-
-(defn deblank [story-str]
-  (-> story-str
-      (.replace "\n\n\n" "\n\n")
-      (.strip))) 
 
 (defn close-quotes [story-str]
   """
   If there is an odd number of quotes in a line, close the quote.
   """
-  ; TODO: if there is more than one quote and the whole str is wrapped
-  ; in quotes, remove the outside quotes (heuristically, it's a mistake.)
   (.join "\n"
-    (lfor line (.splitlines story-str)
-      (if (% (.count line "\"") 2)
-        (if (= (get line -1) "\"")
-          (+ "\"" line)
-          (+ line "\""))
-        line))))
+    (lfor line (-> story-str (.replace "\"\"" "\"") (.splitlines))
+          (if (% (.count line "\"") 2)  ; if an odd number of quotes
+            (if (= (get line -1) "\"")  ; if ends in a quote
+              (+ "\"" line)             ; close at start
+              (+ line "\""))            ; close at end
+            line))))
   
 (defn recap [[n None]]
   """
@@ -249,8 +252,7 @@
   Do the action implied by `line`, and return the result as a string.
   """
   (setv [command _ args] (.partition line " "))
-  (or (not line)
-      (match command
+  (or (match command
             "/generate" (generate)
             "/g" (parse "/generate")
             "/more" (parse "/generate")
@@ -288,6 +290,6 @@
                           (-> (api.config setting)
                               str
                               (.replace  "[" "\\[")))))
-      (unless (.startswith line "/")
+      (if (.startswith line "/")
+        f"[red]Unknown command: {line}[/red]"
         (take-turn (+ "\n" line "\n\n")))))
-

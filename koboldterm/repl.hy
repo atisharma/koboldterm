@@ -56,10 +56,10 @@
               (.startswith line "/clear") (console.clear)
               (.startswith line "/width") (console.print (set-width line))
               (.startswith line "/margin") (console.print (set-margin line))
-              :else (-> (parser.parse line)
-                        (or  "")
-                        (Padding  #(0 margin 1 margin))
-                        (console.print :justify "left")))))
+              :else (when line
+                      (-> (parser.parse line)
+                          (Padding #(0 margin 1 margin))
+                          (console.print :justify "left"))))))
     (except [EOFError]))
   (print "Bye!"))
 
