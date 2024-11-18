@@ -58,11 +58,11 @@
 
 
 (defn sbf [linelist]
-  """
+  "
   `linelist` is a list of strings.
   Put each line in square bracket format.
   Remove blank lines. Return as one string.
-  """
+  "
   (as-> linelist lines
       (filterfalse str.isspace lines)
       (filter None lines)
@@ -71,9 +71,9 @@
       (+ "[ " lines " ]")))
 
 (defn format-story [story [separator " "]]
-  """
+  "
   Format the story list-of-dicts.
-  """
+  "
   (try
     (.join separator
            (list (map (fn [l] (.strip (:text l "<text field is missing>")))
@@ -89,9 +89,9 @@
       (.strip))) 
 
 (defn trim [story-str]
-  """
+  "
   Remove last incomplete sentence.
-  """
+  "
   (let [sentences (re.split "([\\.\"\\?]+\\s)" story-str)
         last-sentence (get sentences -1)
         last-char (-> last-sentence (.strip) (get -1))
@@ -102,9 +102,9 @@
          ""))))
 
 (defn close-quotes [story-str]
-  """
+  "
   If there is an odd number of quotes in a line, close the quote.
-  """
+  "
   (.join "\n"
     (lfor line (-> story-str (.replace "\"\"" "\"") (.splitlines))
           (if (% (.count line "\"") 2)  ; if an odd number of quotes
@@ -114,10 +114,10 @@
             line))))
   
 (defn recap [[n None]]
-  """
+  "
   Return the last `n` turns of the story as a formatted string.
   Return all of them if `n` is None or omitted.
-  """
+  "
   (try
     (let [ns        (api.story "/nums")
           chunk-ns  (get ns (slice (- (int n)) None))
@@ -137,7 +137,7 @@
     new-text))
 
 (defn world [dirname]
-  """
+  "
   Load any world info files saved under `dirname/world/`.
   The format is per line. The first line is a comment. The second line contains keywords, separated by spaces.
   The rest is descriptive text.
@@ -146,7 +146,7 @@
      Some text here, each line should stand separately.
      Some more text.
     `
-  """
+  "
   ; TODO: move some of this to api module
   ; TODO: maybe use folders
   (cond
@@ -201,10 +201,10 @@
             f"[red]No such file: {dirname}/prompt, prompt not set[/red]")))
 
 (defn start [dirname]
-  """
+  "
   Load prompt, author's note and memory.
   Also load any world info files available in the 'world' subdirectory.
-  """
+  "
   (if dirname
     (.join "\n"
       [(world dirname)
@@ -215,9 +215,9 @@
     "[red]Please specify a directory name.[/red]"))
 
 (defn preset [fname]
-  """
+  "
   Load a json file of settings.
-  """
+  "
   (import json)
   (try
       (with [f (open f"presets/{fname}.settings" "r")]
@@ -248,9 +248,9 @@
   (generate))
 
 (defn parse [line]
-  """
+  "
   Do the action implied by `line`, and return the result as a string.
-  """
+  "
   (setv [command _ args] (.partition line " "))
   (or (match command
             "/generate" (generate)

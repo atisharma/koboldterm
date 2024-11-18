@@ -18,9 +18,9 @@
 
 ; TODO: as a macro
 (defn request [url method [json None]]
-  """
+  "
   Dispatcher for request. Return a response object.
-  """
+  "
   (try
     (match method
            "get" (requests.get url)
@@ -74,7 +74,7 @@
   (get-endpoint "/info/version"))
 
 (defn generate [prompt #**kwargs]
-  ; should get, sanitise, and then put the last generated text.
+  "Get, sanitise, and then put the last generated text."
   (let [response (post-endpoint "/generate" {"prompt" prompt #**kwargs})]
     (try
       (get response 0 "text")
